@@ -33,9 +33,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 # トークンでログイン
 # tnmrのアカウントのトークン
-token = ""
+token = "************"
 # Study-Communicationアカウントのトークン
-#token = ""
+#token = "************"
 gh = Github(token)
 
 repo_num = 0
