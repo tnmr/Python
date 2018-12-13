@@ -23,9 +23,10 @@ import networkx as nw
 import matplotlib.pyplot as plt
 from gensim.models import word2vec
 from sklearn.feature_extraction.text import TfidfVectorizer
+from itertools import chain
 
 
-# In[3]:
+# In[2]:
 
 
 # アカウントでログイン
@@ -33,9 +34,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 # トークンでログイン
 # tnmrのアカウントのトークン
-token = "************"
+token = "ae43b8e573ffc42495adccfc410241fb40ab2506"
 # Study-Communicationアカウントのトークン
-#token = "************"
+#token = "3967d65e5e98e587b4f85eb73266ef103527292d"
 gh = Github(token)
 
 repo_num = 0
@@ -47,7 +48,7 @@ for repo in gh.search_repositories("vim-jp", "stars", "asc"):
 print(repo_num)
 
 
-# In[4]:
+# In[3]:
 
 
 # スターが最も多いリポジトリのissueのナンバーとタイトルを表示
@@ -59,32 +60,27 @@ for issue in repo.get_issues():
 print(issue_num)
 
 
-# In[12]:
+# In[4]:
 
 
 # 指定したissueのタイトルと@ユーザ名とコメントを表示
-var = 12
+var = 12   # ←issue番号指定
+comment_num = 0
 issue = repo.get_issues()[var]
 print('@' + issue.user.login)
 print('#{:<5} {}'.format(issue.number, issue.title))
-print(str(issue.body).replace('\n', ''))
-#print(issue.body)
+#print(str(issue.body).replace('\n', ''))
+print(issue.body)
 for comment in issue.get_comments():
     print('@' + comment.user.login)
-    print(str(comment.body).replace('\n', ''))
-    #print(comment.body)
+    #print(str(comment.body).replace('\n', ''))
+    print(comment.body)
+    comment_num = comment_num + 1
+
+print(comment_num)
 
 
-# In[60]:
-
-
-# データフレームに変換
-#df = pd.DataFrame({'user': user,
-#                                   'comment': comment})
-#print(df)
-
-
-# In[6]:
+# In[5]:
 
 
 # issue番号を指定してissue表示
@@ -105,7 +101,94 @@ print(users)
 print(comments)
 
 
+# In[6]:
+
+
+# 引用部分確認
+for comment in issue.get_comments():
+    quote = re.findall("(?<=\> ).*?(?=\\\n)", comment.body)
+    print(quote)    
+
+
 # In[7]:
+
+
+# メンション部分確認
+for comment in issue.get_comments():
+    mention = re.findall("(?<=^\@).*?(?= )", comment.body)
+    print(mention)
+
+
+# In[8]:
+
+
+# 引用部分のエッジ追加
+quote_edge = []
+for j, comment in enumerate(issue.get_comments()):
+    quotes = re.findall("(?<=\> ).*?(?=\\\n)", comment.body)
+    if quotes:
+        source = []
+        for quote in quotes:
+            for i, comment_source in enumerate(issue.get_comments()):
+                if quote in comment_source.body:
+                    if i != j:
+                        source.append([i, j])
+                    break
+                    
+        source = list(map(list, set(map(tuple, source))))
+        source = list(chain.from_iterable(source))
+        if source:
+            quote_edge.append(source)
+
+print(quote_edge)
+
+
+# In[9]:
+
+
+# メンション部分のエッジ追加
+mention_edge = []
+for j, comment in enumerate(issue.get_comments()):
+    mention = re.findall("(?<=^\@).*?(?= )", comment.body)
+    if mention:
+        source = []
+        i = j
+        while i > -1:
+            if users[i] in mention:
+                mention_edge.append([i-1, j])
+                break
+            i = i -1
+        
+        if source:
+            mention_edge.append(source)
+            
+print(mention_edge)
+
+
+# In[12]:
+
+
+# エッジ作成
+defined_edge = quote_edge + mention_edge
+defined_edge = sorted(list(map(list, set(map(tuple, defined_edge)))), key=lambda x: x[1])
+print("引用+メンション")
+print(defined_edge)
+
+edge = []
+for i, comment in enumerate(issue.get_comments()):
+    edge.append([i, i+1])
+edge.pop()
+print("i, i+1")
+print(edge)
+
+# 引用、メンションのエッジは置き換える
+for i in range(len(defined_edge)):
+    edge[defined_edge[i][1]-1] = defined_edge[i]
+print("更新されたエッジ")
+print(edge)
+
+
+# In[94]:
 
 
 # TFIDF
